@@ -6,6 +6,9 @@
  /**
  * Simple representation of 2D vector.
  */
+ 
+var showMask=true;
+var display;
 
 var Vector = function(x, y) {
 	this.x = x;
@@ -315,7 +318,6 @@ var Animator = function(element, opt_animFunc, opt_unzoomButton) {
 	this.scaleStart = 1;
 	this.animFunc = opt_animFunc;
 	this.unzoomButton = opt_unzoomButton;
-	this.showMask = true;
 	
 	if (element) {
 		var self = this;
@@ -408,7 +410,7 @@ Animator.prototype.unzoom = function() {
 
 Animator.prototype.removeMask = function() {
 	
-	mapAnimator.remove(mask);
+	this.notify('remove');
 	
 };
 
@@ -711,9 +713,6 @@ MotionDisplay.prototype.draw = function(animator) {
 			var s = wind.length() / this.maxLength;
 			var t=Math.floor(290 * (1-s))-45;
 			
-			if(i==3&&Math.random()<.1)
-			console.log(s);
-			
 			
 			g.strokeStyle = "hsl(" + t + ", 50%, 50%)";
 			g.beginPath();
@@ -745,9 +744,9 @@ var MotionDetails = function(div, callout, field, projection, animator) {
 		var a1 = ~~x;
 		var a2 = (~~(x * 10)) % 10;
 		return a1 + '.' + a2;	
-	} 
+  } 
 
-	function minutes(x) {	
+  function minutes(x) {	
 		x = Math.round(x * 60) / 60;
 		var degrees = ~~x;
 		var m = ~~((x - degrees) * 60);
@@ -781,11 +780,9 @@ var MotionDetails = function(div, callout, field, projection, animator) {
 		var lat = location.y;
 		var lon = location.x;
 		var speed = 0;
-		if (field.inBounds(lon, lat)) 
-		{
-			speed = field.getValue(lon, lat).length() / 1.15;
-		}
-		
+		if (field.inBounds(lon, lat)) {
+		  speed = field.getValue(lon, lat).length() / 1.15;
+	  }
 		calloutOK = !!speed;
 		calloutHTML = '<div style="padding-bottom:5px"><b>' +
 		              format(speed)  + ' mph</b> wind speed<br></div>' +
@@ -2970,6 +2967,23 @@ MapMask.prototype.move = function(animator) {
 	s.top = animator.dy + 'px';
 };
 
+MapMask.prototype.remove = function(animator) {
+	$(this.image).toggle();
+	if(!showMask)
+	{
+	display.background="rgb(255,255,255)"
+	display.backgroundAlpha="rgba(255,255,255,.22)"
+	window.setTimeout(function(){display.backgroundAlpha="rgba(255,255,255,.02)"},500)
+	}
+	else
+	{
+	display.background="rgb(40,40,40)"
+	display.backgroundAlpha="rgba(40,40,40,.22)"
+	window.setTimeout(function(){display.backgroundAlpha="rgba(40,40,40,.02)"},500)
+	}
+/* 	$("mask-holder").css({"background-color":"white"})
+ */};
+
 function isAnimating() {
 	return true;
 }
@@ -2986,6 +3000,7 @@ function doUnzoom() {
 function ShowMask() {
 	showMask = !showMask;
 	mapAnimator.removeMask();
+	console.log("Mask");
 	//mapAnimator.unzoom();
 }
 
@@ -3026,7 +3041,7 @@ function init() {
 	var isWinIE = navigator.platform.indexOf('Win') != -1 &&
 	              navigator.userAgent.indexOf('MSIE') != -1;
 	var numParticles = isMacFF || isWinIE ? 3500 : 4500; // slowwwww browsers
-	var display = new MotionDisplay(canvas, imageCanvas, field,
+	display = new MotionDisplay(canvas, imageCanvas, field,
 	                                numParticles, mapProjection);
 
   // IE & FF Windows do weird stuff with very low alpha.
