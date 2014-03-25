@@ -173,19 +173,12 @@ var VectorField = function(field, x0, y0, x1, y1) {
 	this.w = field.length;
 	this.h = field[0].length;
 	this.maxLength = 0;
-	var mx = 0;
-	var my = 0;
 	for (var i = 0; i < this.w; i++) {
 	  for (var j = 0; j < this.h; j++) {
-			if (field[i][j].length() > this.maxLength) {
-				mx = i;
-				my = j;
-			}
+			
 			this.maxLength = Math.max(this.maxLength, field[i][j].length());
 		}
 	}
-	mx = (mx / this.w) * (x1 - x0) + x0;
-	my = (my / this.h) * (y1 - y0) + y0;
 };
 
 /**
@@ -209,9 +202,9 @@ var VectorField = function(field, x0, y0, x1, y1) {
  */
 VectorField.read = function(data, correctForSphere) {
 	var field = [];
-	var w = data.gridWidth;
-	var h = data.gridHeight;
-	var n = 2 * w * h;
+	var w = data.gridWidth; //width
+	var h = data.gridHeight; //height
+	var n = 2 * w * h; //2*area
 	var i = 0;
 	// OK, "total" and "weight"
 	// are kludges that you should totally ignore,
@@ -222,6 +215,7 @@ VectorField.read = function(data, correctForSphere) {
 	for (var x = 0; x < w; x++) {
 		field[x] = [];
 		for (var y = 0; y < h; y++) {
+			//reads in x/y data for each point, left->right, top->bottom
 			var vx = data.field[i++];
 			var vy = data.field[i++];
 			var v = new Vector(vx, vy);
@@ -340,7 +334,7 @@ var Animator = function(element, opt_animFunc, opt_unzoomButton) {
 	    self.mouseY = e.pageY - this.offsetTop;
   		self.mousemove();
   	});
-  }
+  } 
 };
  
 
@@ -451,14 +445,14 @@ Animator.prototype.relativeDy = function() {
 	return this.dy - this.dyStart;
 }
 
-Animator.prototype.start = function(opt_millis) {
+Animator.prototype.start = function(opt_millis) { //start animation
 	var millis = opt_millis || 20;
 	var self = this;
 	function go() {
 		var start = new Date();
 		self.loop();
 		var time = new Date() - start;
-		setTimeout(go, Math.max(10, millis - time));
+		setTimeout(go, Math.max(10, millis - time)); //execute every opt_milis seconds
 	}
 	go();
 };
@@ -521,24 +515,22 @@ var MotionDisplay = function(canvas, imageCanvas, field, numParticles, opt_proje
 	this.canvas = canvas;
   this.projection = opt_projection || IDProjection;
   this.field = field;
-	this.numParticles = numParticles;
-	this.first = true;
-	this.maxLength = field.maxLength;
-	this.speedScale = 1;
-	this.renderState = 'normal';
+	this.numParticles = numParticles; //number of streaks
+	this.first = true; //first run
+	this.maxLength = field.maxLength; //max length of vector
 	this.imageCanvas = imageCanvas;
-	this.x0 = this.field.x0;
-	this.x1 = this.field.x1;
-	this.y0 = this.field.y0;
-	this.y1 = this.field.y1;
-	this.makeNewParticles(null, true);
+	this.x0 = this.field.x0;  //corner coordinates
+	this.x1 = this.field.x1;  //corner coordinates
+	this.y0 = this.field.y0;  //corner coordinates
+	this.y1 = this.field.y1;  //corner coordinates
+	this.makeNewParticles(null, true); //randomly generate particles within map
 	this.colors = [];
-	this.rgb = '40, 40, 40';
+	this.rgb = '40, 40, 40'; //background color
 	this.background = 'rgb(' + this.rgb + ')';
 	this.backgroundAlpha = 'rgba(' + this.rgb + ', .02)';
 	this.outsideColor = '#fff';
 	for (var i = 0; i < 256; i++) {
-		this.colors[i] = 'rgb(' + i + ',' + i + ',' + i + ')';
+		this.colors[i] = 'rgb(' + i + ',' + i + ',' + i + ')'; //grayscale colors
 	}
 	if (this.projection) {
   	this.startOffsetX = this.projection.offsetX;
@@ -559,30 +551,29 @@ MotionDisplay.prototype.makeNewParticles = function(animator) {
 	}
 };
 
-
-MotionDisplay.prototype.makeParticle = function(animator) {
-	var dx = animator ? animator.dx : 0;
-	var dy = animator ? animator.dy : 0;
-	var scale = animator ? animator.scale : 1;
-	var safecount = 0;
-	for (;;) {
-		var a = Math.random();
-		var b = Math.random();
+//makes random particle within bounds of canvas
+MotionDisplay.prototype.makeParticle = function(animator) { 
+	var dx = animator ? animator.dx : 0; //speed?
+	var dy = animator ? animator.dy : 0; //speed?
+	var scale = animator ? animator.scale : 1; //scale of orig graph
+	for (;;) { //infinite loop
+		var a = Math.random(); //0-1
+		var b = Math.random(); //0-1
 		var x = a * this.x0 + (1 - a) * this.x1;
 		var y = b * this.y0 + (1 - b) * this.y1;
-		var v = this.field.getValue(x, y);
+		var v = this.field.getValue(x, y); //vector form
 		if (this.field.maxLength == 0) {
 			return new Particle(x, y, 1 + 40 * Math.random());
 		}
-		var m = v.length() / this.field.maxLength;
+		var m = v.length() / this.field.maxLength;  //magnitude
 		// The random factor here is designed to ensure that
 		// more particles are placed in slower areas; this makes the
 		// overall distribution appear more even.
-		if ((v.x || v.y) && (++safecount > 10 || Math.random() > m * .9)) {
+		if ((v.x || v.y) && ( Math.random() > m * .9)) { //10% chance at max length
 			var proj = this.projection.project(x, y);
 			var sx = proj.x * scale + dx;
 			var sy = proj.y * scale + dy;
-			if (++safecount > 10 || !(sx < 0 || sy < 0 || sx > this.canvas.width || sy > this.canvas.height)) {
+			if ( !(sx < 0 || sy < 0 || sx > this.canvas.width || sy > this.canvas.height)) { //dimension check
 	      return new Particle(x, y, 1 + 40 * Math.random());
       }	
 		}
@@ -592,7 +583,7 @@ MotionDisplay.prototype.makeParticle = function(animator) {
 
 MotionDisplay.prototype.startMove = function(animator) {
 	// Save screen.
-	this.imageCanvas.getContext('2d').drawImage(this.canvas, 0, 0);
+	//this.imageCanvas.getContext('2d').drawImage(this.canvas, 0, 0);
 };
 
 
@@ -670,7 +661,7 @@ MotionDisplay.prototype.move = function(animator) {
 
 
 MotionDisplay.prototype.moveThings = function(animator) {
-	var speed = .01 * this.speedScale / animator.scale;
+	var speed = .01  / animator.scale;
 	for (var i = 0; i < this.particles.length; i++) {
 		var p = this.particles[i];
 		if (p.age > 0 && this.field.inBounds(p.x, p.y)) {
@@ -698,7 +689,7 @@ MotionDisplay.prototype.draw = function(animator) {
 	var dx = animator.dx;
 	var dy = animator.dy;
 	var scale = animator.scale;
-
+	
 	g.fillRect(dx, dy, w * scale,h * scale);
 	var proj = new Vector(0, 0);
 	var val = new Vector(0, 0);
@@ -715,14 +706,16 @@ MotionDisplay.prototype.draw = function(animator) {
 		if (proj.x < 0 || proj.y < 0 || proj.x > w || proj.y > h) {
 			p.age = -2;
 		}
-		if (p.oldX != -1) {
+		if (p.oldX != -1) { //not new
 			var wind = this.field.getValue(p.x, p.y, val);
 			var s = wind.length() / this.maxLength;
-			var c = 90 + Math.round(350 * s); // was 400
-			if (c > 255) {
-				c = 255;
-			} 
-			g.strokeStyle = this.colors[c];
+			var t=Math.floor(290 * (1-s))-45;
+			
+			if(i==3&&Math.random()<.1)
+			console.log(s);
+			
+			
+			g.strokeStyle = "hsl(" + t + ", 50%, 50%)";
 			g.beginPath();
 			g.moveTo(proj.x, proj.y);
 			g.lineTo(p.oldX, p.oldY);
@@ -752,9 +745,9 @@ var MotionDetails = function(div, callout, field, projection, animator) {
 		var a1 = ~~x;
 		var a2 = (~~(x * 10)) % 10;
 		return a1 + '.' + a2;	
-  } 
+	} 
 
-  function minutes(x) {	
+	function minutes(x) {	
 		x = Math.round(x * 60) / 60;
 		var degrees = ~~x;
 		var m = ~~((x - degrees) * 60);
@@ -788,9 +781,11 @@ var MotionDetails = function(div, callout, field, projection, animator) {
 		var lat = location.y;
 		var lon = location.x;
 		var speed = 0;
-		if (field.inBounds(lon, lat)) {
-		  speed = field.getValue(lon, lat).length() / 1.15;
-	  }
+		if (field.inBounds(lon, lat)) 
+		{
+			speed = field.getValue(lon, lat).length() / 1.15;
+		}
+		
 		calloutOK = !!speed;
 		calloutHTML = '<div style="padding-bottom:5px"><b>' +
 		              format(speed)  + ' mph</b> wind speed<br></div>' +
@@ -2976,7 +2971,7 @@ MapMask.prototype.move = function(animator) {
 };
 
 function isAnimating() {
-	return document.getElementById('animating').checked;
+	return true;
 }
 
 function showCities() {
@@ -3030,7 +3025,7 @@ function init() {
 	              navigator.userAgent.indexOf('Firefox') != -1;
 	var isWinIE = navigator.platform.indexOf('Win') != -1 &&
 	              navigator.userAgent.indexOf('MSIE') != -1;
-	var numParticles = isMacFF || isWinIE ? 3500 : 5000; // slowwwww browsers
+	var numParticles = isMacFF || isWinIE ? 3500 : 4500; // slowwwww browsers
 	var display = new MotionDisplay(canvas, imageCanvas, field,
 	                                numParticles, mapProjection);
 
